@@ -13,19 +13,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sparetimeapp.ui.nav.NavGraph
 import com.example.sparetimeapp.ui.theme.SpareTimeAppTheme
+import com.example.sparetimeapp.data.RulesRepo
+import com.example.sparetimeapp.data.SettingsStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+
+        val repo = RulesRepo(
+            store = SettingsStore(applicationContext),
+            appContext = applicationContext
+        )
+
         setContent {
-            SpareTimeAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(Modifier.padding(innerPadding)) {
-                        NavGraph()
-                    }
-                }
-            }
+            NavGraph(repo = repo)
         }
     }
 }
