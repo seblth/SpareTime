@@ -51,4 +51,10 @@ class RulesRepo(private val store: SettingsStore, private val appContext: Contex
     suspend fun clearBlock(pkg: String) {
         store.clearBlocked(pkg, todayKey())
     }
+
+    fun packagesFlow(): Flow<List<String>> =
+        store.packagesFlow().map { it.sorted() }
+
+    suspend fun deletePackage(pkg: String) = store.deletePackage(pkg)
+    suspend fun clearTodayForPackage(pkg: String) = store.clearTodayForPackage(pkg)
 }
