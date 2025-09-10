@@ -9,12 +9,14 @@ import com.example.sparetimeapp.ui.onboarding.OnboardingScreen
 import com.example.sparetimeapp.ui.dashboard.DashboardScreen
 import com.example.sparetimeapp.ui.rules.RulesScreen
 import com.example.sparetimeapp.data.RulesRepo
+import com.example.sparetimeapp.ui.devtools.DevToolsScreen
+
 
 object Routes {
     const val Onboarding = "onboarding"
     const val Dashboard  = "dashboard"
     const val Rules      = "rules"
-    // Optional: const val DevTools  = "devtools"
+    const val DevTools  = "devtools"
 }
 
 @Composable
@@ -38,9 +40,10 @@ fun NavGraph(
 
         composable(Routes.Dashboard) {
             DashboardScreen(
+                repo = repo,
                 onOpenOnboarding = { nav.navigate(Routes.Onboarding) },
-                onOpenRules      = { nav.navigate(Routes.Rules) }
-                // Optional: onOpenDevTools = { nav.navigate(Routes.DevTools) }
+                onOpenRules      = { nav.navigate(Routes.Rules) },
+                onOpenDevTools   = { nav.navigate(Routes.DevTools) }
             )
         }
 
@@ -51,7 +54,11 @@ fun NavGraph(
             )
         }
 
-        // Optionaler Test-Screen später:
-        // composable(Routes.DevTools) { DevToolsScreen(repo = repo) }
+        composable(Routes.DevTools) {
+            DevToolsScreen(
+                repo = repo,
+                onBack = { nav.popBackStack() }
+            )
+        }
     }
 }

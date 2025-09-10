@@ -95,12 +95,14 @@ fun RulesScreen(
         ) {
             Button(onClick = {
                 scope.launch {
-                    repo.setRule(
+                    repo.setRuleAndReevaluate(
                         pkg = pkg.trim(),
                         minutesLimit = minTxt.trim().toIntOrNull(),
-                        accessLimit = accTxt.trim().toIntOrNull(),
+                        accessLimit  = accTxt.trim().toIntOrNull(),
                         notifications = notif
+                        // mode/allowance nur, wenn du die Felder im RulesScreen anbietest
                     )
+
                 }
             }) { Text("Speichern") }
 

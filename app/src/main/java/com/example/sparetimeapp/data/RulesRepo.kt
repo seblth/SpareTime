@@ -1,11 +1,13 @@
 package com.example.sparetimeapp.data
 
 import android.content.Context
+import com.example.sparetimeapp.data.util.DebugLog
 import com.example.sparetimeapp.util.midnightMillis
 import com.example.sparetimeapp.util.todayKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 
 data class TodayStats(
     val minutesUsed: Int,
@@ -14,7 +16,6 @@ data class TodayStats(
 )
 
 class RulesRepo(private val store: SettingsStore, private val appContext: Context) {
-
     fun ruleFlow(pkg: String): Flow<Rule> = store.ruleFlow(pkg)
 
     fun todayStatsFlow(pkg: String): Flow<TodayStats> {
@@ -28,8 +29,36 @@ class RulesRepo(private val store: SettingsStore, private val appContext: Contex
         }
     }
 
-    suspend fun setRule(pkg: String, minutesLimit: Int?, accessLimit: Int?, notifications: Boolean) {
-        store.setRule(pkg, minutesLimit, accessLimit, notifications)
+    suspend fun setRule(
+        pkg: String,
+        minutesLimit: Int?,
+        accessLimit: Int?,
+        notifications: Boolean,
+        countingMode: String = "foreground",
+        allowanceMinutes: Int? = null
+    ) {
+        store.setRule(
+            pkg = pkg,
+            minutesLimit = minutesLimit,
+            accessLimit = accessLimit,
+            notifications = notifications,
+            countingMode = countingMode,
+            allowanceMinutes = allowanceMinutes
+        )
+        DebugLog.d("RULES", "SetRule: $pkg min=$minutesLimit acc=$accessLimit")
+    }
+
+    // Komfort: Regel setzen UND sofort neu bewerten
+    suspend fun setRuleAndReevaluate(
+        pkg: String,
+        minutesLimit: Int?,
+        accessLimit: Int?,
+        notifications: Boolean,
+        countingMode: String = "foreground",
+        allowanceMinutes: Int? = null
+    ) {
+        setRule(pkg, minutesLimit, accessLimit, notifications, countingMode, allowanceMinutes)
+        reevaluateBlockFor(pkg)
     }
 
     suspend fun incUsedMinute(pkg: String) = store.incUsedMinute(pkg, todayKey())
@@ -52,9 +81,44 @@ class RulesRepo(private val store: SettingsStore, private val appContext: Contex
         store.clearBlocked(pkg, todayKey())
     }
 
+    // Re-eval: passt Blockstatus an die (neue) Regel + heutigen Stand an
+    suspend fun reevaluateBlockFor(pkg: String) {
+        val rule  = ruleFlow(pkg).first()
+        val stats = todayStatsFlow(pkg).first()
+
+        val over    = isOverLimit(rule, stats)
+        val blocked = isBlockedNow(stats)
+
+        when {
+            over && !blocked -> blockUntilMidnight(pkg) // jetzt über Limit → sperren
+            !over && blocked -> clearBlock(pkg)         // nicht mehr über Limit → entsperren
+            else -> { /* keine Änderung */ }
+        }
+    }
+
     fun packagesFlow(): Flow<List<String>> =
         store.packagesFlow().map { it.sorted() }
 
-    suspend fun deletePackage(pkg: String) = store.deletePackage(pkg)
+    suspend fun deletePackage(pkg: String){
+        store.deletePackage(pkg)
+        DebugLog.d("RULES", "DeleteRule: $pkg")
+    }
     suspend fun clearTodayForPackage(pkg: String) = store.clearTodayForPackage(pkg)
+
+    // --- NEW: Allowance (heute) ---
+    fun allowanceUntilFlow(pkg: String): Flow<Long> =
+        store.allowanceUntilFlow(pkg, todayKey())
+
+    suspend fun startAllowance(pkg: String, minutes: Int) {
+        val end = System.currentTimeMillis() + minutes * 60_000L
+        store.setAllowanceUntil(pkg, todayKey(), end)
+    }
+
+    suspend fun clearAllowance(pkg: String) {
+        store.clearAllowance(pkg, todayKey())
+    }
+
+    // Optional helper
+    private fun now() = System.currentTimeMillis()
+
 }

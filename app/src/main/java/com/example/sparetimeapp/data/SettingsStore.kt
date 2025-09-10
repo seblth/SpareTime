@@ -4,6 +4,7 @@ import com.example.sparetimeapp.util.todayKey
 import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -21,12 +22,18 @@ private fun keyRuleNotif(pkg: String) = booleanPreferencesKey("rule_notif_$pkg")
 private fun keyUsedMin(pkg: String, day: String) = intPreferencesKey("used_min_${pkg}_$day")
 private fun keyUsedAcc(pkg: String, day: String) = intPreferencesKey("used_acc_${pkg}_$day")
 private fun keyBlockedUntil(pkg: String, day: String) = longPreferencesKey("blocked_until_${pkg}_$day")
+private fun keyRuleCountingMode(pkg: String) = stringPreferencesKey("rule_mode_$pkg")          // "foreground" | "allowance"
+private fun keyRuleAllowanceMin(pkg: String) = intPreferencesKey("rule_allow_min_$pkg")        // Minuten pro Zugriff (z.B. 5)
+
+private fun keyAllowanceUntil(pkg: String, day: String) = longPreferencesKey("allow_until_${pkg}_$day") // Heutiger Allowance-Status
 
 data class Rule(
     val pkg: String,
-    val minutesLimit: Int?,     // null = kein Minutenlimit
-    val accessLimit: Int?,      // null = kein Accesslimit
-    val notifications: Boolean  // true = Notifs erlauben
+    val minutesLimit: Int?,      // null = kein Minutenlimit
+    val accessLimit: Int?,       // null = kein Accesslimit
+    val notifications: Boolean,  // Notifs erlaubt?
+    val countingMode: String = "foreground", // "foreground" (MVP) oder "allowance"
+    val allowanceMinutes: Int? = null        // z.B. 5 (= 5 Minuten pro Zugriff)
 )
 
 class SettingsStore(private val ctx: Context) {
@@ -63,31 +70,47 @@ class SettingsStore(private val ctx: Context) {
         ctx.dataStore.data.map { p ->
             Rule(
                 pkg = pkg,
-                minutesLimit = p[keyRuleMin(pkg)],
-                accessLimit = p[keyRuleAcc(pkg)],
-                notifications = p[keyRuleNotif(pkg)] ?: true
+                minutesLimit   = p[keyRuleMin(pkg)],
+                accessLimit    = p[keyRuleAcc(pkg)],
+                notifications  = p[keyRuleNotif(pkg)] ?: true,
+                countingMode   = p[keyRuleCountingMode(pkg)] ?: "foreground",
+                allowanceMinutes = p[keyRuleAllowanceMin(pkg)]
             )
         }
+
 
     suspend fun setRule(
         pkg: String,
         minutesLimit: Int?,
         accessLimit: Int?,
-        notifications: Boolean
+        notifications: Boolean,
+        // --- NEW (optional für später; kann null bleiben) ---
+        countingMode: String = "foreground",
+        allowanceMinutes: Int? = null
     ) {
         ctx.dataStore.edit { p ->
             if (minutesLimit != null) p[keyRuleMin(pkg)] = minutesLimit else p.remove(keyRuleMin(pkg))
             if (accessLimit != null)  p[keyRuleAcc(pkg)] = accessLimit else p.remove(keyRuleAcc(pkg))
             p[keyRuleNotif(pkg)] = notifications
+            // --- NEW ---
+            p[keyRuleCountingMode(pkg)] = countingMode
+            if (allowanceMinutes != null) p[keyRuleAllowanceMin(pkg)] = allowanceMinutes else p.remove(keyRuleAllowanceMin(pkg))
         }
-        // Wenn wenigstens irgend ein Limit existiert oder Notifications gesetzt sind → im Index behalten
-        if (minutesLimit != null || accessLimit != null || notifications) {
-            addPackageToIndex(pkg)
-        } else {
-            // Falls du „leere” Regeln entfernen willst:
-            removePackageFromIndex(pkg)
-        }
+        // Index pflegen (wie gehabt)
+        addPackageToIndex(pkg)
     }
+
+    // --- NEW: Allowance-Status (heute) ---
+    fun allowanceUntilFlow(pkg: String, day: String): Flow<Long> =
+        ctx.dataStore.data.map { it[keyAllowanceUntil(pkg, day)] ?: 0L }
+
+    suspend fun setAllowanceUntil(pkg: String, day: String, millis: Long) {
+        ctx.dataStore.edit { it[keyAllowanceUntil(pkg, day)] = millis }
+    }
+    suspend fun clearAllowance(pkg: String, day: String) {
+        ctx.dataStore.edit { it.remove(keyAllowanceUntil(pkg, day)) }
+    }
+
 
     // ----- TODAY USAGE -----
     fun usedMinutesFlow(pkg: String, day: String): Flow<Int> =

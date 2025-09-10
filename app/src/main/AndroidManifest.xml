@@ -45,6 +45,9 @@
                 android:resource="@xml/accessibility_config"/>
         </service>
 
+        <service
+            android:name=".overlay.OverlayService"
+            android:exported="false" />
 
     </application>
 
