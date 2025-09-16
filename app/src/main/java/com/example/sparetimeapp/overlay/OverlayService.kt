@@ -133,14 +133,13 @@ class OverlayService : Service() {
         }
     }
 
-    private fun removeOverlay() {
+     private fun removeOverlay() {
         overlayView?.let {
-            try {
-                windowManager.removeView(it)
-            } catch (_: Exception) { }
+            runCatching { windowManager.removeView(it) }
         }
         overlayView = null
     }
+}
 
     override fun onDestroy() {
         removeOverlay()

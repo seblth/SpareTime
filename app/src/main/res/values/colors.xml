@@ -7,4 +7,16 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+   
+    <!-- Hintergrund vom Overlay -->
+    <color name="overlay_bg">#0D1117</color>
+
+    <!-- Typo -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+
+   <color name="pill_bg">#2A3340</color>        <!-- Button-Hintergrund -->
+   <color name="pill_stroke">#3A4656</color>    <!-- dezente Umrandung -->
+
+
 </resources>
