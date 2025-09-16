@@ -139,7 +139,7 @@ class OverlayService : Service() {
         }
         overlayView = null
     }
-}
+
 
     override fun onDestroy() {
         removeOverlay()
