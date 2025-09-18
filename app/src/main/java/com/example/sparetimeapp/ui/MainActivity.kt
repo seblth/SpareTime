@@ -15,22 +15,31 @@ import com.example.sparetimeapp.ui.nav.NavGraph
 import com.example.sparetimeapp.ui.theme.SpareTimeAppTheme
 import com.example.sparetimeapp.data.RulesRepo
 import com.example.sparetimeapp.data.SettingsStore
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
         val repo = RulesRepo(
             store = SettingsStore(applicationContext),
             appContext = applicationContext
         )
 
         setContent {
-            NavGraph(repo = repo)
+            SpareTimeAppTheme {
+            Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    NavGraph(repo = repo)
+                }
+            }
         }
     }
 }
+
 
 @Composable
 fun Greeting(name: String) {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.example.sparetimeapp.ui.theme.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,13 +23,83 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import android.provider.Settings
 import android.util.Log
 import com.example.sparetimeapp.focus.BlockerAccessibilityService
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
+
+
+@Composable
+private fun StatusDot(ok: Boolean) {
+    val color = if (ok) GreenOK else RedBad
+    Box(
+        Modifier.size(12.dp)
+            .background(color, shape = MaterialTheme.shapes.extraLarge)
+    )
+}
+
+@Composable
+private fun OutlinePill(text: String, onClick: () -> Unit, enabled: Boolean = true) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.extraLarge,
+        border = ButtonDefaults.outlinedButtonBorder.copy(
+            width = 2.dp,
+            brush = androidx.compose.ui.graphics.SolidColor(BlueOutline)
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            contentColor = TextPrimary
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(text, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun PermissionCard(
+    title: String,
+    ok: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        border = ButtonDefaults.outlinedButtonBorder.copy(
+            width = 1.dp,
+            brush = androidx.compose.ui.graphics.SolidColor(BlueOutline.copy(alpha = 0.25f))
+        )
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatusDot(ok)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            OutlinePill(text = if (ok) "Allowed" else "Allow", onClick = onClick)
+        }
+    }
+}
 
 @Composable
 private fun OnResume(recheck: () -> Unit) {
-    val owner = LocalLifecycleOwner.current
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(owner) {
-        val obs = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) recheck()
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) recheck()
         }
         owner.lifecycle.addObserver(obs)
         onDispose { owner.lifecycle.removeObserver(obs) }
@@ -41,128 +112,112 @@ fun OnboardingScreen(
 ) {
     val ctx = LocalContext.current
 
-    // Recompute, wenn wir zurück aus den Settings kommen:
-    var usage by remember { mutableStateOf(isUsageAccessGranted(ctx)) }
-    var overlay by remember { mutableStateOf(isOverlayGranted(ctx)) }
-    var acc by remember { mutableStateOf(isAccessibilityEnabled(ctx)) }
-    var notif by remember { mutableStateOf(isNotificationsEnabled(ctx)) }
+    var usage  by remember { mutableStateOf(false) }
+    var overlay by remember { mutableStateOf(false) }
+    var acc    by remember { mutableStateOf(false) }
+    var notif  by remember { mutableStateOf(false) }
 
     fun recheck() {
-        usage = isUsageAccessGranted(ctx)
+        usage  = isUsageAccessGranted(ctx)
         overlay = isOverlayGranted(ctx)
         acc    = isAccessibilityEnabled(ctx)
         notif  = isNotificationsEnabled(ctx)
-        Log.d("ACC", Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "none")
-        Log.d("ACC", ComponentName(ctx, BlockerAccessibilityService::class.java).flattenToString())
     }
 
     LaunchedEffect(Unit) { recheck() }
-
     OnResume { recheck() }
 
-    // Runtime-Permission Launcher (nur Android 13+)
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        notif = if (granted) true else isNotificationsEnabled(ctx)
-    }
+    ) { granted -> notif = if (granted) true else isNotificationsEnabled(ctx) }
 
     val allGreen = usage && overlay && acc && (!needsPostNotificationPermission() || notif)
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Onboarding (Test-UI)", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        InfoRow(
-            title = "Usage",
-            subtitle = "Track App-Usage",
-            ok = usage
-        ) {
-            openUsageAccessSettings(ctx)
-        }
-        InfoRow(
-            title = "Overlay",
-            subtitle = "Block-Screen for limited apps",
-            ok = overlay
-        ) {
-            openOverlaySettings(ctx)
-        }
-        InfoRow(
-            title = "Accessibility",
-            subtitle = "Track App-Start",
-            ok = acc
-        ) {
-            openAccessibilitySettings(ctx)
-        }
-        InfoRow(
-            title = "Notifications",
-            subtitle = "Notify that limit is reached",
-            ok = if (needsPostNotificationPermission()) notif else true
-        ) {
-            if (needsPostNotificationPermission()) {
-                // Erst versuchen, Runtime Permission zu holen
-                notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                openAppNotificationSettings(ctx)
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-        Button(
-            enabled = allGreen,
-            onClick = onAllGranted,
-            modifier = Modifier.align(Alignment.End)
-        ) { Text("Continue") }
-
-        if (!allGreen) {
-            AssistiveBanner("Please grant all permissions.")
-        } else {
-            AssistiveBanner("All set :) Please Continue...", ok = true)
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(title: String, subtitle: String, ok: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        border = ButtonDefaults.outlinedButtonBorder,
-        tonalElevation = 0.dp
-    ) {
-        Row(
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        Column(
             Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(padding)
+                .padding(16.dp)
         ) {
-            StatusDot(ok = ok)
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Onboarding", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+
+            // --- Karten (mit Punkt) UNTEREINANDER ---
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                PermissionCard(
+                    title = "Usage access",
+                    ok = usage,
+                    onClick = { openUsageAccessSettings(ctx) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                PermissionCard(
+                    title = "Accessibility",
+                    ok = acc,
+                    onClick = { openAccessibilitySettings(ctx) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                PermissionCard(
+                    title = "Overlay",
+                    ok = overlay,
+                    onClick = { openOverlaySettings(ctx) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                PermissionCard(
+                    title = "Notifications",
+                    ok = if (needsPostNotificationPermission()) notif else true,
+                    onClick = {
+                        if (needsPostNotificationPermission())
+                            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        else
+                            openAppNotificationSettings(ctx)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-            OutlinedButton(onClick = onClick) { Text(if (ok) "Access granted" else "Grant Access") }
+
+            Spacer(Modifier.height(16.dp))
+
+            val bannerText = if (allGreen) "All set :) Please Continue..." else "Activate all rights"
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.medium,
+                tonalElevation = 0.dp,
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    width = 1.dp,
+                    brush = androidx.compose.ui.graphics.SolidColor(
+                        (if (allGreen) GreenOK else BlueOutline).copy(alpha = 0.25f)
+                    )
+                )
+            ) {
+                Text(
+                    bannerText,
+                    Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Button(
+                enabled = allGreen,
+                onClick = onAllGranted,
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PillBg,
+                    contentColor = TextPrimary
+                ),
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    width = 1.dp,
+                    brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
+                ),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                modifier = Modifier.align(Alignment.End)
+            ) { Text("Continue", fontWeight = FontWeight.Bold) }
         }
     }
 }
-
-@Composable
-private fun StatusDot(ok: Boolean) {
-    val color = if (ok) Color(0xFF55D187) else Color(0xFFF9C74F)
-    Box(
-        Modifier
-            .size(12.dp)
-            .background(color, shape = MaterialTheme.shapes.extraLarge)
-    )
-}
-
-@Composable
-private fun AssistiveBanner(text: String, ok: Boolean = false) {
-    val border = if (ok) Color(0x3355D187) else Color(0x33F9C74F)
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        shape = MaterialTheme.shapes.medium,
-        tonalElevation = 0.dp,
-        border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(border))    ) {
-        Text(text, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-

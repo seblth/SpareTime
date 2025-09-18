@@ -2,10 +2,19 @@ package com.example.sparetimeapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Hintergrund & Flächen
+val Bg            = Color(0xFF0D1117) // fast schwarz-blau
+val SurfaceDark   = Color(0xFF121A23) // Karten/Container
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Text
+val TextPrimary   = Color(0xFFFFFFFF)
+val TextSecondary = Color(0xB3FFFFFF)
+
+// Akzente
+val BlueOutline   = Color(0xFF6CB6FF) // Outline/Chip
+val PillBg        = Color(0xFF2A3340) // (falls du später Filled-Pills willst)
+val PillStroke    = Color(0xFF3A4656)
+
+// Status-Punkte
+val GreenOK       = Color(0xFF55D187)
+val RedBad        = Color(0xFFCC4B4B)
