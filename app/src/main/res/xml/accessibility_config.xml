@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:canRetrieveWindowContent="false"
-    android:notificationTimeout="50" />
+    android:notificationTimeout="50"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/app_name" />

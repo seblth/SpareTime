@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 
 data class TodayStats(
     val minutesUsed: Int,
@@ -118,7 +120,56 @@ class RulesRepo(private val store: SettingsStore, private val appContext: Contex
         store.clearAllowance(pkg, todayKey())
     }
 
-    // Optional helper
+    // Top-level Totals für heute
+    fun totalsTodayFlow(): Flow<Totals> = packagesFlow().flatMapLatest { pkgs ->
+        if (pkgs.isEmpty()) flowOf(Totals(0,0,0))
+        else combine(pkgs.map { p -> todayStatsFlow(p) }) { arr ->
+            val now = System.currentTimeMillis()
+            Totals(
+                minutes = arr.sumOf { it.minutesUsed },
+                accesses = arr.sumOf { it.accessesUsed },
+                blockedCount = arr.count { it.blockedUntil > now }
+            )
+        }
+    }
+
+    data class Totals(val minutes: Int, val accesses: Int, val blockedCount: Int)
+
+    // Per-App Liste (heute), sortiert nach Minuten
+    fun perAppTodayFlow(): Flow<List<AppToday>> = packagesFlow().flatMapLatest { pkgs ->
+        if (pkgs.isEmpty()) flowOf(emptyList())
+        else combine(pkgs.map { p -> todayStatsFlow(p).map { AppToday(p, it) } }) { arr ->
+            arr.sortedByDescending { it.stats.minutesUsed }
+        }
+    }
+
+    data class AppToday(val pkg: String, val stats: TodayStats)
+
+    /** Setzt für ein Paket die heutigen Nutzungswerte zurück. */
+//    suspend fun resetToday(pkg: String) {
+//        store.updateStats(pkg) { it.copy(minutesUsed = 0, accessesUsed = 0, blockedUntil = 0L) }
+//        store.setAllowanceUntil(pkg, 0L)
+//    }
+//
+//    /** Setzt alle heutigen Werte für alle beobachteten Pakete zurück. */
+//    suspend fun resetAllToday() {
+//        val pkgs = packagesFlow().firstOrNull().orEmpty()
+//        for (p in pkgs) resetToday(p)
+//        store.markTodayAsCurrent()
+//    }
+//
+//    /** Prüft, ob „heute“ schon aktiv ist. Wenn nicht → Tages-Reset. */
+//    suspend fun ensureTodayFresh() {
+//        val last = store.getLastDayKey()
+//        val today = store.todayKey()
+//        if (last != today) {
+//            val pkgs = packagesFlow().firstOrNull().orEmpty()
+//            for (p in pkgs) resetToday(p)
+//            store.setLastDayKey(today)
+//        }
+//    }
+
+        // Optional helper
     private fun now() = System.currentTimeMillis()
 
 }

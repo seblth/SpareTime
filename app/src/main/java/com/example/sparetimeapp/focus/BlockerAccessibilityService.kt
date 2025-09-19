@@ -49,7 +49,8 @@ class BlockerAccessibilityService : AccessibilityService() {
         // akzeptiere beide relevanten Typen
         when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> { /* continue */ }
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> { /* continue */ }
             else -> return
         }
 
@@ -76,7 +77,7 @@ class BlockerAccessibilityService : AccessibilityService() {
 
         val now = System.currentTimeMillis()
 
-        // Entprellen: nur bei echtem Paketwechsel (etwas lockerer, 800ms)
+        // Entprellen: nur bei echtem Paketwechsel
         if (pkg == lastPkg && now - lastPkgChangedAt < 800L) return
 
         if (pkg != lastPkg) {
