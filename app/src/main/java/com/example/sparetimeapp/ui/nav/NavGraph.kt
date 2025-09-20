@@ -50,7 +50,7 @@ fun NavGraph(
         composable(Routes.Rules) {
             RulesScreen(
                 repo = repo,
-                onBack = { nav.popBackStack(Routes.Dashboard, false) } // 👈 zurück zum Dashboard
+                onBackToDashboard = { nav.popBackStack(Routes.Dashboard, false) }
             )
         }
 
