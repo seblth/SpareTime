@@ -97,8 +97,17 @@ fun RulesScreen(
     LaunchedEffect(showPicker) {
         if (showPicker && allApps.isEmpty()) {
             allApps = loadLaunchableApps(ctx, includeSystem = true) // YouTube ist System-App → true!
+        } else if (selectedRule != null) {
+            minTxt = selectedRule?.minutesLimit?.toString() ?: "0"
+            accTxt = selectedRule?.accessLimit?.toString() ?: "0"
+            notif  = selectedRule?.notifications ?: true
+        } else if (selectedPkg != null) {
+            // neu ausgewählte App ohne vorhandene Regel → Defaults anzeigen
+            minTxt = "0"; accTxt = "0"; notif = true
+        } else {
+            minTxt = ""; accTxt = ""; notif = true
         }
-    }
+ }
     
 
 
@@ -108,7 +117,7 @@ fun RulesScreen(
         ExtendedFloatingActionButton(onClick = { showPicker = true }) { Text("New") }
     }
     ) { padding ->
-    LazyColumn(
+        LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -130,116 +139,43 @@ fun RulesScreen(
         }
 
         // Paket-Liste (jede Zeile als Lazy-Item -> gesamte Seite scrollt)
-        if (packages.isEmpty()) {
-            item {
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color  = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        width = 1.dp,
-                        brush = androidx.compose.ui.graphics.SolidColor(BlueOutline.copy(alpha = 0.15f))
-                    )
-                ) {
-                    Text("No Apps saved.", Modifier.padding(12.dp), color = TextSecondary)
-                }
-            }
-        } else {
-            items(packages, key = { it }) { p ->
-                val rule by repo.ruleFlow(p).collectAsState(initial = Rule(p, null, null, true))
-                LimitRow(
+        items(packages, key = { it }) { p ->
+            val rule by repo.ruleFlow(p).collectAsState(initial = Rule(p, null, null, true))
+
+            LimitRow(
+                pkg = p,
+                minutes = rule.minutesLimit,
+                accesses = rule.accessLimit,
+                selected = (p == selectedPkg),
+                onClick = { selectedPkg = p }
+            )
+
+            // Editor direkt unter dem selektierten App-Eintrag
+            if (p == selectedPkg) {
+                EditorBlock(
                     pkg = p,
-                    minutes = rule.minutesLimit,
-                    accesses = rule.accessLimit,
-                    selected = (p == selectedPkg),
-                    onClick = { selectedPkg = p }
+                    minTxt = minTxt,
+                    accTxt = accTxt,
+                    notif = notif,
+                    onMinChange = { minTxt = it },
+                    onAccChange = { accTxt = it },
+                    onNotifChange = { notif = it },
+                    onSave = {
+                        scope.launch {
+                            repo.setRuleAndReevaluate(
+                                pkg = p,
+                                minutesLimit = minTxt.trim().toIntOrNull(),
+                                accessLimit  = accTxt.trim().toIntOrNull(),
+                                notifications = notif
+                            )
+                        }
+                    },
+                    onDelete = { showDeleteConfirm = true },
+                    onClose = { selectedPkg = null }
                 )
             }
         }
-
-        // Editor oder Hinweis – auch als Lazy-Item
-        item {
-            if (selectedPkg != null) {
-                Text("Edit: $selectedPkg", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color  = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        width = 1.dp,
-                        brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
-                    ),
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = minTxt, onValueChange = { minTxt = it },
-                            label = { Text("Min/Day") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = accTxt, onValueChange = { accTxt = it },
-                            label = { Text("Access/Day") }, singleLine = true, modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Notifications")
-                            Spacer(Modifier.width(8.dp))
-                            Switch(checked = notif, onCheckedChange = { notif = it })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                        ) {
-                            // Save
-                            Button(
-                                onClick = {
-                                    val p = selectedPkg ?: return@Button
-                                    scope.launch {
-                                        repo.setRuleAndReevaluate(
-                                            pkg = p,
-                                            minutesLimit = minTxt.trim().toIntOrNull(),
-                                            accessLimit  = accTxt.trim().toIntOrNull(),
-                                            notifications = notif
-                                        )
-                                    }
-                                },
-                                shape = MaterialTheme.shapes.extraLarge,
-                                colors = ButtonDefaults.buttonColors(containerColor = PillBg, contentColor = TextPrimary),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    width = 1.dp,
-                                    brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
-                                )
-                            ) { Text("Save", fontWeight = FontWeight.Bold) }
-
-                            // Delete (rot)
-                            Button(
-                                onClick = { showDeleteConfirm = true },
-                                shape = MaterialTheme.shapes.extraLarge,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor   = MaterialTheme.colorScheme.onError
-                                )
-                            ) { Text("Delete") }
-
-                            Spacer(Modifier.weight(1f))
-
-                            TextButton(onClick = { selectedPkg = null }) { Text("Close") }
-                        }
-                    }
-                }
-            } else {
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color  = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        width = 1.dp,
-                        brush = androidx.compose.ui.graphics.SolidColor(BlueOutline.copy(alpha = 0.15f))
-                    )
-                ) {
-                    Text("Choose App to change settings.", Modifier.padding(12.dp), color = TextSecondary)
-                }
-            }
-        }
-    }
+    } 
 
 
 
@@ -270,11 +206,21 @@ fun RulesScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
+                                            val pkg = app.packageName
+                                            // direkt Default-Regel anlegen
+                                            scope.launch {
+                                                repo.setRuleAndReevaluate(
+                                                    pkg = pkg,
+                                                    minutesLimit = 0,
+                                                    accessLimit  = 0,
+                                                    notifications = true
+                                                )
+                                            }
                                             selectedPkg = app.packageName   // Auswahl setzen
                                             showPicker = false
                                         }
                                 )
-                                Divider()
+                                HorizontalDivider()
                             }
                         }
                     }
@@ -327,7 +273,7 @@ private fun LimitRow(
         shape = MaterialTheme.shapes.large,
         color  = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled =true).copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(if (selected) BlueOutline else PillStroke)
         ),
@@ -366,7 +312,7 @@ private fun AssistChip(text: String, label: String) {
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color  = MaterialTheme.colorScheme.surface,
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled =true).copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(BlueOutline)
         )
@@ -385,7 +331,7 @@ private fun PillButtonOutlined(text: String, onClick: () -> Unit, modifier: Modi
         onClick = onClick,
         modifier = modifier.height(64.dp),
         shape = MaterialTheme.shapes.extraLarge,
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled =true).copy(
             width = 2.dp,
             brush = androidx.compose.ui.graphics.SolidColor(BlueOutline)
         ),
@@ -404,7 +350,7 @@ private fun PillButtonFilled(text: String, onClick: () -> Unit, modifier: Modifi
         modifier = modifier.height(64.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.buttonColors(containerColor = PillBg, contentColor = TextPrimary),
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled =true).copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
         ),
@@ -441,4 +387,79 @@ private suspend fun loadLaunchableApps(
     }
     .distinctBy { it.packageName }
     .sortedBy { it.label.lowercase() }
+}
+
+@Composable
+private fun EditorBlock(
+    pkg: String,
+    minTxt: String,
+    accTxt: String,
+    notif: Boolean,
+    onMinChange: (String) -> Unit,
+    onAccChange: (String) -> Unit,
+    onNotifChange: (Boolean) -> Unit,
+    onSave: () -> Unit,
+    onDelete: () -> Unit,
+    onClose: () -> Unit
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color  = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+            width = 1.dp,
+            brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 32.dp, top = 8.dp) // leicht eingerückt
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Edit: $pkg", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+            OutlinedTextField(
+                value = minTxt,
+                onValueChange = onMinChange,     // ← KEIN minTxt = it
+                label = { Text("Min/Day") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = accTxt,
+                onValueChange = onAccChange,     // ← KEIN accTxt = it
+                label = { Text("Access/Day") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Notifications")
+                Spacer(Modifier.width(8.dp))
+                Switch(checked = notif, onCheckedChange = onNotifChange)
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(onClick = onSave) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor   = MaterialTheme.colorScheme.onError
+                    )
+                ) { Text("Delete") }
+
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onClose) { Text("Close") }
+            }
+        }
+    }
 }

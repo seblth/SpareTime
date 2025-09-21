@@ -70,7 +70,7 @@ class OverlayService : Service() {
 
     private fun showOverlay(blockedPkg: String) {
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Overlay-Erlaubnis fehlt", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Overlay-permission is missing", Toast.LENGTH_SHORT).show()
             return
         }
         if (overlayView != null) {
@@ -129,7 +129,7 @@ class OverlayService : Service() {
             view.setOnTouchListener { _, _ -> /* Touch konsumieren, nichts durchlassen */ true }
         } catch (e: Exception) {
             Log.e(TAG, "addView failed", e)
-            Toast.makeText(this, "Overlay konnte nicht angezeigt werden", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Overlay could not be shown", Toast.LENGTH_SHORT).show()
         }
     }
 
