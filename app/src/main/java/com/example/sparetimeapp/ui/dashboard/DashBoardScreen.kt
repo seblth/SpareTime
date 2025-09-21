@@ -113,7 +113,7 @@ fun DashboardScreen(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 0.dp,
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                         width = 1.dp,
                         brush = androidx.compose.ui.graphics.SolidColor(BlueOutline.copy(alpha = 0.25f))
                     ),
@@ -160,7 +160,7 @@ private fun PillButtonOutlined(text: String, onClick: () -> Unit, modifier: Modi
         onClick = onClick,
         modifier = modifier.height(64.dp),
         shape = MaterialTheme.shapes.extraLarge,
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled=true).copy(
             width = 2.dp,
             brush = androidx.compose.ui.graphics.SolidColor(BlueOutline)
         ),
@@ -179,7 +179,7 @@ private fun PillButtonFilled(text: String, onClick: () -> Unit, modifier: Modifi
         modifier = modifier.height(64.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.buttonColors(containerColor = PillBg, contentColor = TextPrimary),
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled=true).copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
         ),
@@ -202,7 +202,7 @@ private fun TopAppCard(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(PillStroke)
         ),
@@ -266,7 +266,7 @@ private fun StatusChip(text: String, isBlocked: Boolean) {
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = (if (isBlocked) RedBad else GreenOK).copy(alpha = 0.15f),
-        border = ButtonDefaults.outlinedButtonBorder.copy(
+        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(if (isBlocked) RedBad else GreenOK)
         )
